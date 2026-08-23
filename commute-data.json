@@ -180,18 +180,5 @@
     "weatherPrecipitationMM": 0,
     "weatherDescription": "Partly cloudy",
     "id": "mt676g2vrfpgzj652vq"
-  },
-  {
-    "timestamp": "2026-08-23T19:26:14.971Z",
-    "period": "Evening",
-    "routeLabel": "WR9 0BA",
-    "origin": "Safran (Hatherley Lane)",
-    "destination": "WR9 0BA",
-    "durationMinutes": 34.5,
-    "distanceMiles": 29.769346440155594,
-    "weatherTempC": 20.8,
-    "weatherPrecipitationMM": 0,
-    "weatherDescription": "Partly cloudy",
-    "id": "mt676x187p27k1l9irb"
   }
 ]
