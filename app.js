@@ -1,3 +1,15 @@
+/* ---------- Display names ---------- */
+/* Internally, records keep using "Home" / "WR9 0BA" as their route key (so old
+   captured data keeps working) — this just controls what's shown on screen. */
+const LOCATION_DISPLAY_NAMES = { "Home": "Evesham", "WR9 0BA": "Droitwich" };
+function displayLocation(name) {
+  return LOCATION_DISPLAY_NAMES[name] || name;
+}
+
+// Settings screen card titles — fixed, independent of any stored label,
+// so they show the friendly names even for settings saved before this update.
+const PLACE_TITLES = { home: "Evesham (Home)", wr9: "Droitwich (WR9 0BA)", safran: "Safran (Hatherley Lane)" };
+
 /* ---------- Settings & storage ---------- */
 
 function defaultSettings() {
@@ -88,7 +100,7 @@ function showScreen(id) {
 function placeCardHTML(key, place) {
   return `
     <div class="card">
-      <h3>${escapeHtml(place.label)}</h3>
+      <h3>${escapeHtml(PLACE_TITLES[key] || place.label)}</h3>
       <label>Address</label>
       <input type="text" id="place-${key}-address" value="${escapeHtml(place.address)}">
       <div class="toggle-row">
@@ -160,7 +172,7 @@ function renderCalculate() {
   const period = currentPeriod();
   document.getElementById("period-label").textContent = period;
   document.getElementById("period-direction").textContent =
-    period === "Morning" ? "Home / WR9 0BA → Safran" : "Safran → Home / WR9 0BA";
+    period === "Morning" ? "Evesham / Droitwich → Safran" : "Safran → Evesham / Droitwich";
   document.getElementById("calc-error").innerHTML = "";
   document.getElementById("calc-results").innerHTML = "";
 }
@@ -281,7 +293,7 @@ async function runCalculation() {
 
     resultsBox.innerHTML = legs.map((leg) => `
       <div class="result-item">
-        <div class="route">${escapeHtml(leg.origin)} → ${escapeHtml(leg.destination)}</div>
+        <div class="route">${escapeHtml(displayLocation(leg.origin))} → ${escapeHtml(displayLocation(leg.destination))}</div>
         <div class="meta">${leg.minutes.toFixed(0)} min · ${leg.miles.toFixed(1)} mi</div>
       </div>
     `).join("");
@@ -305,6 +317,7 @@ function setTopMode(mode) {
   document.querySelectorAll("#topmode-segment button").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
   document.getElementById("insights-view").style.display = mode === "insights" ? "block" : "none";
   document.getElementById("table-view").style.display = mode === "table" ? "block" : "none";
+  document.getElementById("sheet-view").style.display = mode === "sheet" ? "block" : "none";
   if (mode === "insights") renderChart();
 }
 
@@ -337,6 +350,7 @@ function renderData() {
 
   renderOverview(records);
   renderTable(records);
+  renderSheet(records);
   if (currentTopMode === "insights") renderChart();
 }
 
@@ -368,7 +382,7 @@ function renderOverview(records) {
   if (home && wr9) {
     const diff = Math.abs(home.avgMin - wr9.avgMin);
     diffText = `${diff.toFixed(0)} min`;
-    diffDetail = diff < 0.5 ? "Evenly matched" : (home.avgMin < wr9.avgMin ? "Home is faster on average" : "WR9 0BA is faster on average");
+    diffDetail = diff < 0.5 ? "Evenly matched" : (home.avgMin < wr9.avgMin ? "Evesham is faster on average" : "Droitwich is faster on average");
   }
 
   document.getElementById("stat-grid").innerHTML = `
@@ -377,19 +391,19 @@ function renderOverview(records) {
       <div class="value">${avgAll.toFixed(0)} min</div>
     </div>
     <div class="stat-card">
-      <div class="label">Home vs WR9 0BA</div>
+      <div class="label">Evesham vs Droitwich</div>
       <div class="value">${diffText}</div>
       <div class="detail">${diffDetail}</div>
     </div>
     <div class="stat-card">
       <div class="label">Fastest journey</div>
       <div class="value">${fastest.durationMinutes.toFixed(0)} min</div>
-      <div class="detail">${escapeHtml(fastest.routeLabel)} · ${formatDateShort(fastest.timestamp)}</div>
+      <div class="detail">${escapeHtml(displayLocation(fastest.routeLabel))} · ${formatDateShort(fastest.timestamp)}</div>
     </div>
     <div class="stat-card">
       <div class="label">Slowest journey</div>
       <div class="value">${slowest.durationMinutes.toFixed(0)} min</div>
-      <div class="detail">${escapeHtml(slowest.routeLabel)} · ${formatDateShort(slowest.timestamp)}</div>
+      <div class="detail">${escapeHtml(displayLocation(slowest.routeLabel))} · ${formatDateShort(slowest.timestamp)}</div>
     </div>
   `;
 
@@ -398,7 +412,7 @@ function renderOverview(records) {
     routeAvgCard.style.display = "block";
     document.getElementById("route-avg-list").innerHTML = routeAverages.map((r) => `
       <div class="route-avg-row">
-        <span class="r-name">${escapeHtml(r.route)}</span>
+        <span class="r-name">${escapeHtml(displayLocation(r.route))}</span>
         <span class="r-val">${r.avgMin.toFixed(0)} min · ${r.avgMiles.toFixed(1)} mi</span>
       </div>
     `).join("");
@@ -439,7 +453,7 @@ function renderChart() {
     const labels = uniqueTimestamps.map((t) => formatDateShort(t));
     const routes = [...new Set(sorted.map((r) => r.routeLabel))];
     const datasets = routes.map((route, i) => ({
-      label: route,
+      label: displayLocation(route),
       data: uniqueTimestamps.map((t) => {
         const rec = sorted.find((r) => r.timestamp === t && r.routeLabel === route);
         return rec ? rec.durationMinutes : null;
@@ -464,7 +478,7 @@ function renderChart() {
   } else if (currentChartMode === "timeOfDay") {
     const routes = [...new Set(records.map((r) => r.routeLabel))];
     const datasets = routes.map((route, i) => ({
-      label: route,
+      label: displayLocation(route),
       data: records.filter((r) => r.routeLabel === route).map((r) => {
         const d = new Date(r.timestamp);
         return { x: d.getHours() + d.getMinutes() / 60, y: r.durationMinutes };
@@ -501,17 +515,26 @@ function renderChart() {
       keyFn = (d) => ukSeason(d);
       order = ["Winter", "Spring", "Summer", "Autumn"];
     }
-    const grouped = {};
-    records.forEach((r) => {
-      const key = keyFn(new Date(r.timestamp));
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push(r.durationMinutes);
-    });
-    const labels = order.filter((k) => grouped[k]);
-    const data = labels.map((k) => grouped[k].reduce((a, b) => a + b, 0) / grouped[k].length);
+    const routes = [...new Set(records.map((r) => r.routeLabel))].sort();
+
+    // Only show groups that actually have data (e.g. no Saturday entries yet).
+    const labels = order.filter((label) =>
+      records.some((r) => keyFn(new Date(r.timestamp)) === label)
+    );
+
+    const datasets = routes.map((route, i) => ({
+      label: displayLocation(route),
+      data: labels.map((label) => {
+        const matches = records.filter((r) => r.routeLabel === route && keyFn(new Date(r.timestamp)) === label);
+        if (!matches.length) return null;
+        return matches.reduce((s, r) => s + r.durationMinutes, 0) / matches.length;
+      }),
+      backgroundColor: colorForRoute(route, i)
+    }));
+
     chartInstance = new Chart(ctx, {
       type: "bar",
-      data: { labels, datasets: [{ label: "Avg minutes", data, backgroundColor: "#2dd4bf" }] },
+      data: { labels, datasets },
       options: {
         ...commonOptions,
         scales: {
@@ -524,7 +547,7 @@ function renderChart() {
     const periods = ["Morning", "Evening"];
     const routes = [...new Set(records.map((r) => r.routeLabel))].sort();
     const datasets = routes.map((route, i) => ({
-      label: route,
+      label: displayLocation(route),
       data: periods.map((period) => {
         const subset = records.filter((r) => r.routeLabel === route && r.period === period);
         if (!subset.length) return 0;
@@ -562,10 +585,13 @@ function renderTable(records) {
     return `
       <div class="record">
         <div class="record-top">
-          <span class="route">${escapeHtml(r.routeLabel)}</span>
-          <span class="badge ${r.period === "Evening" ? "evening" : ""}">${escapeHtml(r.period)}</span>
+          <div class="record-top-left">
+            <span class="route">${escapeHtml(displayLocation(r.routeLabel))}</span>
+            <span class="badge ${r.period === "Evening" ? "evening" : ""}">${escapeHtml(r.period)}</span>
+          </div>
+          <button class="delete-btn" onclick="deleteRecord('${r.id}')" aria-label="Delete this entry">✕</button>
         </div>
-        <div class="path">${escapeHtml(r.origin)} → ${escapeHtml(r.destination)}</div>
+        <div class="path">${escapeHtml(displayLocation(r.origin))} → ${escapeHtml(displayLocation(r.destination))}</div>
         <div class="figures">
           <span>${weekday}, ${dateStr} · ${timeStr}</span>
           <span><strong>${r.durationMinutes.toFixed(0)} min</strong> · ${r.distanceMiles.toFixed(1)} mi</span>
@@ -574,6 +600,62 @@ function renderTable(records) {
       </div>
     `;
   }).join("");
+}
+
+/* ---------- Spreadsheet-style view ---------- */
+
+function renderSheet(records) {
+  const container = document.getElementById("sheet-container");
+  if (!container) return;
+
+  const rows = records.map((r) => {
+    const d = new Date(r.timestamp);
+    return `
+      <tr>
+        <td>${d.toLocaleDateString(undefined, { day: "2-digit", month: "2-digit", year: "2-digit" })}</td>
+        <td>${d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}</td>
+        <td>${d.toLocaleDateString(undefined, { weekday: "short" })}</td>
+        <td>${escapeHtml(r.period)}</td>
+        <td>${escapeHtml(displayLocation(r.routeLabel))}</td>
+        <td>${escapeHtml(displayLocation(r.origin))}</td>
+        <td>${escapeHtml(displayLocation(r.destination))}</td>
+        <td class="num">${r.durationMinutes.toFixed(0)}</td>
+        <td class="num">${r.distanceMiles.toFixed(1)}</td>
+        <td class="num">${r.weatherTempC !== null && r.weatherTempC !== undefined ? Math.round(r.weatherTempC) : ""}</td>
+        <td>${r.weatherDescription ? escapeHtml(r.weatherDescription) : ""}</td>
+        <td>${ukSeason(d)}</td>
+      </tr>
+    `;
+  }).join("");
+
+  container.innerHTML = `
+    <div class="sheet-scroll">
+      <table class="sheet-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Time</th><th>Day</th><th>Period</th><th>Route</th>
+            <th>From</th><th>To</th><th>Min</th><th>Mi</th><th>°C</th><th>Weather</th><th>Season</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ---------- Delete / reset ---------- */
+
+function deleteRecord(id) {
+  if (!confirm("Delete this entry? This can't be undone.")) return;
+  const records = getRecords().filter((r) => r.id !== id);
+  localStorage.setItem("commuteRecords", JSON.stringify(records));
+  renderData();
+}
+
+function resetAllData() {
+  if (!confirm("Delete ALL captured commute data? This can't be undone — export a CSV first if you want a backup.")) return;
+  localStorage.removeItem("commuteRecords");
+  renderData();
 }
 
 /* ---------- CSV export (your only backup — data lives in this browser only) ---------- */

@@ -252,6 +252,50 @@
   .record .figures strong { color: var(--text); }
   .record .extra { font-size: 11.5px; color: var(--text-dim); margin-top: 6px; }
 
+  /* Spreadsheet-style view */
+  .sheet-scroll {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  table.sheet-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 12px;
+    background: var(--panel);
+  }
+  table.sheet-table th, table.sheet-table td {
+    border: 1px solid var(--border);
+    padding: 7px 10px;
+    white-space: nowrap;
+    text-align: left;
+  }
+  table.sheet-table thead th {
+    background: var(--panel-hover);
+    position: sticky;
+    top: 0;
+    font-weight: 700;
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+  table.sheet-table tbody tr:nth-child(even) { background: rgba(255,255,255,0.025); }
+  table.sheet-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Delete button on record cards */
+  .record-top-left { display: flex; align-items: center; gap: 8px; }
+  .delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 15px;
+    padding: 2px 6px;
+    cursor: pointer;
+  }
+  .delete-btn:active { color: var(--red); }
+
   .empty-state {
     text-align: center;
     padding: 60px 20px;
@@ -279,7 +323,7 @@
     <div class="hero">
       <div class="glyph">🚗</div>
       <h1>Commute Tracker</h1>
-      <p>Home / WR9 0BA ⇄ Safran, Hatherley Lane</p>
+      <p>Evesham / Droitwich ⇄ Safran, Hatherley Lane</p>
     </div>
     <button class="big-btn primary" onclick="showScreen('screen-calculate'); renderCalculate();">
       <span class="emoji">📍</span> Calculate New Commute
@@ -353,6 +397,7 @@
     <div class="segmented" id="topmode-segment">
       <button data-mode="insights" class="active" onclick="setTopMode('insights')">Insights</button>
       <button data-mode="table" onclick="setTopMode('table')">Table</button>
+      <button data-mode="sheet" onclick="setTopMode('sheet')">Sheet</button>
     </div>
 
     <div id="data-empty" class="empty-state" style="display:none;">
@@ -387,9 +432,15 @@
       <div id="table-view" style="display:none;">
         <div class="section-title">All runs</div>
         <div id="table-list"></div>
-        <div class="export-row">
+        <div class="export-row btn-row">
           <button class="btn btn-secondary" onclick="exportCSV()">Export as CSV</button>
+          <button class="btn btn-danger" onclick="resetAllData()">Reset All Data</button>
         </div>
+      </div>
+
+      <div id="sheet-view" style="display:none;">
+        <div class="section-title">All runs (spreadsheet view)</div>
+        <div id="sheet-container"></div>
       </div>
     </div>
   </div>
