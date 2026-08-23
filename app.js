@@ -284,6 +284,9 @@ async function runCalculation() {
   }
 
   btn.disabled = true;
+  btn.textContent = "Syncing…";
+  await syncFromGitHubBeforeCalculate();
+
   btn.textContent = "Calculating…";
   const period = currentPeriod();
 
@@ -337,18 +340,13 @@ async function runCalculation() {
       </div>
     `).join("");
 
-    if (settings.github.autoBackup && settings.github.token && settings.github.owner && settings.github.repo) {
+    if (githubConfigured(settings)) {
       const backupNote = document.createElement("div");
       backupNote.className = "hint";
       backupNote.style.marginTop = "10px";
-      backupNote.textContent = "Backing up to GitHub…";
+      backupNote.id = "calc-backup-note";
       resultsBox.appendChild(backupNote);
-      try {
-        await backupToGitHub();
-        backupNote.textContent = "Backed up to GitHub ✓";
-      } catch (err) {
-        backupNote.textContent = `GitHub backup failed: ${err.message}`;
-      }
+      await autoBackupAfterChange("calc-backup-note");
     }
   } catch (err) {
     errorBox.innerHTML = `<div class="error-box">${escapeHtml(err.message || "Something went wrong.")}</div>`;
@@ -359,6 +357,71 @@ async function runCalculation() {
 }
 
 /* ---------- GitHub backup ---------- */
+
+function githubConfigured(settings) {
+  const gh = settings.github;
+  return !!(gh.autoBackup && gh.token && gh.owner && gh.repo);
+}
+
+function mergeRecordsById(a, b) {
+  const map = new Map();
+  [...a, ...b].forEach((r) => { if (r && r.id) map.set(r.id, r); });
+  return Array.from(map.values());
+}
+
+async function pullFromGitHub() {
+  const settings = getSettings();
+  const gh = settings.github;
+  if (!gh.token || !gh.owner || !gh.repo) return null;
+
+  const path = gh.path || "commute-data.json";
+  const apiUrl = `https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/${encodeURIComponent(path)}`;
+  const headers = {
+    "Authorization": `Bearer ${gh.token}`,
+    "Accept": "application/vnd.github+json"
+  };
+
+  const res = await fetch(apiUrl, { headers });
+  if (res.status === 404) return []; // no backup on GitHub yet — nothing to merge in
+  if (!res.ok) throw new Error(`could not fetch backup (HTTP ${res.status})`);
+
+  const data = await res.json();
+  const jsonText = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+  const parsed = JSON.parse(jsonText);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
+/// Pulls the latest GitHub backup and merges it into local storage (by record id,
+/// so nothing is duplicated or lost). Best-effort: failures here never block the
+/// calculation itself — if it can't reach GitHub, it just proceeds with local data.
+async function syncFromGitHubBeforeCalculate() {
+  const settings = getSettings();
+  if (!githubConfigured(settings)) return;
+  try {
+    const remoteRecords = await pullFromGitHub();
+    if (remoteRecords) {
+      const merged = mergeRecordsById(getRecords(), remoteRecords);
+      localStorage.setItem("commuteRecords", JSON.stringify(merged));
+    }
+  } catch (e) {
+    // Offline or GitHub unreachable — fine, just continue with what's stored locally.
+  }
+}
+
+/// Pushes the current local data to GitHub, if auto-backup is configured and on.
+/// Used after any change: a new calculation, a single delete, or Reset All Data.
+async function autoBackupAfterChange(statusElId) {
+  const settings = getSettings();
+  const statusEl = statusElId ? document.getElementById(statusElId) : null;
+  if (!githubConfigured(settings)) return;
+  if (statusEl) statusEl.textContent = "Backing up to GitHub…";
+  try {
+    await backupToGitHub();
+    if (statusEl) statusEl.textContent = `Backed up ✓ (${new Date().toLocaleTimeString()})`;
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `Backup failed: ${err.message}`;
+  }
+}
 
 async function backupToGitHub() {
   const settings = getSettings();
@@ -757,17 +820,19 @@ function renderSheet(records) {
 
 /* ---------- Delete / reset ---------- */
 
-function deleteRecord(id) {
+async function deleteRecord(id) {
   if (!confirm("Delete this entry? This can't be undone.")) return;
   const records = getRecords().filter((r) => r.id !== id);
   localStorage.setItem("commuteRecords", JSON.stringify(records));
   renderData();
+  await autoBackupAfterChange("table-backup-status");
 }
 
-function resetAllData() {
+async function resetAllData() {
   if (!confirm("Delete ALL captured commute data? This can't be undone — export a CSV first if you want a backup.")) return;
   localStorage.removeItem("commuteRecords");
   renderData();
+  await autoBackupAfterChange("table-backup-status");
 }
 
 /* ---------- CSV export (Save to Files → iCloud Drive is the closest thing to auto-save) ---------- */

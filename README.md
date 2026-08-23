@@ -87,6 +87,13 @@ There are two backup options, in Settings:
   calculation,"** and every time you calculate a commute, a JSON copy of all your data is
   pushed to a file in that repo. You can also tap **Backup Now** any time for a manual
   backup. This can be the same repo hosting the app, or a separate private one.
+
+  With this turned on, the app also **pulls the latest backup down and merges it in
+  before every calculation** — so if you ever use the app from a second phone, or
+  restore it after losing your data, you won't overwrite newer data with older data.
+  It does the same merge-and-push cycle after you **delete a single entry** or **Reset
+  All Data** from the Table tab, so the GitHub copy always reflects what's actually on
+  your phone, in both directions.
 - **iCloud (manual, two taps):** a website genuinely can't write into iCloud Drive on its
   own — Apple doesn't allow that, for good security reasons. The closest thing: tap
   **Export as CSV** on the Table tab. On iPhone this opens the native share sheet, and
