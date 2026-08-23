@@ -1,14 +1,21 @@
 /* ---------- Display names ---------- */
-/* Internally, records keep using "Home" / "WR9 0BA" as their route key (so old
-   captured data keeps working) — this just controls what's shown on screen. */
-const LOCATION_DISPLAY_NAMES = { "Home": "Evesham", "WR9 0BA": "Droitwich" };
+/* Internally, records always keep using "Home" / "WR9 0BA" / "Safran (Hatherley Lane)"
+   as their route key (so old captured data keeps working). displayName is what's shown
+   on screen, and is editable in Settings — read live so renamed places update everywhere
+   immediately, including past entries. */
 function displayLocation(name) {
-  return LOCATION_DISPLAY_NAMES[name] || name;
+  const s = getSettings();
+  const map = {
+    "Home": s.places.home.displayName || "Home",
+    "WR9 0BA": s.places.wr9.displayName || "WR9 0BA",
+    "Safran (Hatherley Lane)": s.places.safran.displayName || "Safran (Hatherley Lane)"
+  };
+  return map[name] || name;
 }
 
-// Settings screen card titles — fixed, independent of any stored label,
-// so they show the friendly names even for settings saved before this update.
-const PLACE_TITLES = { home: "Evesham (Home)", wr9: "Droitwich (WR9 0BA)", safran: "Safran (Hatherley Lane)" };
+// Settings screen card titles — fixed labels for *which* address this is,
+// independent of the editable display name.
+const PLACE_TITLES = { home: "Home address", wr9: "WR9 0BA address", safran: "Safran car park address" };
 
 /* ---------- Settings & storage ---------- */
 
@@ -17,10 +24,11 @@ function defaultSettings() {
     tomtomKey: "",
     captureWeather: true,
     places: {
-      home: { label: "Home", address: "10 Codling Road, Evesham, WR11, UK", useExact: false, lat: 0, lng: 0 },
-      wr9: { label: "WR9 0BA", address: "WR9 0BA, UK", useExact: false, lat: 0, lng: 0 },
-      safran: { label: "Safran (Hatherley Lane)", address: "Hatherley Lane, Gloucester, UK", useExact: false, lat: 0, lng: 0 }
-    }
+      home: { displayName: "Evesham", address: "10 Codling Road, Evesham, WR11, UK", useExact: false, lat: 0, lng: 0 },
+      wr9: { displayName: "Droitwich", address: "WR9 0BA, UK", useExact: false, lat: 0, lng: 0 },
+      safran: { displayName: "Safran (Hatherley Lane)", address: "Hatherley Lane, Gloucester, UK", useExact: false, lat: 0, lng: 0 }
+    },
+    github: { token: "", owner: "", repo: "", path: "commute-data.json", autoBackup: false }
   };
 }
 
@@ -37,7 +45,8 @@ function getSettings() {
         home: { ...defaults.places.home, ...(parsed.places && parsed.places.home) },
         wr9: { ...defaults.places.wr9, ...(parsed.places && parsed.places.wr9) },
         safran: { ...defaults.places.safran, ...(parsed.places && parsed.places.safran) }
-      }
+      },
+      github: { ...defaults.github, ...parsed.github }
     };
   } catch (e) {
     return defaults;
@@ -100,7 +109,9 @@ function showScreen(id) {
 function placeCardHTML(key, place) {
   return `
     <div class="card">
-      <h3>${escapeHtml(PLACE_TITLES[key] || place.label)}</h3>
+      <h3>${escapeHtml(PLACE_TITLES[key] || key)}</h3>
+      <label>Display name (shown in charts &amp; table)</label>
+      <input type="text" id="place-${key}-displayName" value="${escapeHtml(place.displayName)}">
       <label>Address</label>
       <input type="text" id="place-${key}-address" value="${escapeHtml(place.address)}">
       <div class="toggle-row">
@@ -141,7 +152,15 @@ function renderSettings() {
     placeCardHTML("home", s.places.home) +
     placeCardHTML("wr9", s.places.wr9) +
     placeCardHTML("safran", s.places.safran);
+
+  document.getElementById("ghToken").value = s.github.token;
+  document.getElementById("ghOwner").value = s.github.owner;
+  document.getElementById("ghRepo").value = s.github.repo;
+  document.getElementById("ghPath").value = s.github.path;
+  document.getElementById("ghAutoBackup").checked = s.github.autoBackup;
+
   document.getElementById("settings-saved-msg").textContent = "";
+  document.getElementById("backup-status").textContent = "";
 }
 
 function saveSettingsFromForm() {
@@ -149,21 +168,39 @@ function saveSettingsFromForm() {
   s.tomtomKey = document.getElementById("tomtomKey").value.trim();
   s.captureWeather = document.getElementById("captureWeather").checked;
   ["home", "wr9", "safran"].forEach((key) => {
+    const defaultName = defaultSettings().places[key].displayName;
+    s.places[key].displayName = document.getElementById(`place-${key}-displayName`).value.trim() || defaultName;
     s.places[key].address = document.getElementById(`place-${key}-address`).value.trim();
     s.places[key].useExact = document.getElementById(`place-${key}-useExact`).checked;
     s.places[key].lat = parseFloat(document.getElementById(`place-${key}-lat`).value) || 0;
     s.places[key].lng = parseFloat(document.getElementById(`place-${key}-lng`).value) || 0;
   });
+  s.github.token = document.getElementById("ghToken").value.trim();
+  s.github.owner = document.getElementById("ghOwner").value.trim();
+  s.github.repo = document.getElementById("ghRepo").value.trim();
+  s.github.path = document.getElementById("ghPath").value.trim() || "commute-data.json";
+  s.github.autoBackup = document.getElementById("ghAutoBackup").checked;
+
   saveSettings(s);
+  updateHomeHero();
   document.getElementById("settings-saved-msg").textContent = "Saved ✓";
 }
 
 function resetSettings() {
-  if (!confirm("Reset addresses to the originally provided defaults?")) return;
+  if (!confirm("Reset addresses and display names to the originally provided defaults?")) return;
   const s = getSettings();
   s.places = defaultSettings().places;
   saveSettings(s);
+  updateHomeHero();
   renderSettings();
+}
+
+/* ---------- Home screen ---------- */
+
+function updateHomeHero() {
+  const el = document.getElementById("hero-subtitle");
+  if (!el) return;
+  el.textContent = `${displayLocation("Home")} / ${displayLocation("WR9 0BA")} ⇄ ${displayLocation("Safran (Hatherley Lane)")}`;
 }
 
 /* ---------- Calculate screen ---------- */
@@ -172,7 +209,9 @@ function renderCalculate() {
   const period = currentPeriod();
   document.getElementById("period-label").textContent = period;
   document.getElementById("period-direction").textContent =
-    period === "Morning" ? "Evesham / Droitwich → Safran" : "Safran → Evesham / Droitwich";
+    period === "Morning"
+      ? `${displayLocation("Home")} / ${displayLocation("WR9 0BA")} → ${displayLocation("Safran (Hatherley Lane)")}`
+      : `${displayLocation("Safran (Hatherley Lane)")} → ${displayLocation("Home")} / ${displayLocation("WR9 0BA")}`;
   document.getElementById("calc-error").innerHTML = "";
   document.getElementById("calc-results").innerHTML = "";
 }
@@ -297,11 +336,84 @@ async function runCalculation() {
         <div class="meta">${leg.minutes.toFixed(0)} min · ${leg.miles.toFixed(1)} mi</div>
       </div>
     `).join("");
+
+    if (settings.github.autoBackup && settings.github.token && settings.github.owner && settings.github.repo) {
+      const backupNote = document.createElement("div");
+      backupNote.className = "hint";
+      backupNote.style.marginTop = "10px";
+      backupNote.textContent = "Backing up to GitHub…";
+      resultsBox.appendChild(backupNote);
+      try {
+        await backupToGitHub();
+        backupNote.textContent = "Backed up to GitHub ✓";
+      } catch (err) {
+        backupNote.textContent = `GitHub backup failed: ${err.message}`;
+      }
+    }
   } catch (err) {
     errorBox.innerHTML = `<div class="error-box">${escapeHtml(err.message || "Something went wrong.")}</div>`;
   } finally {
     btn.disabled = false;
     btn.textContent = "Calculate Now";
+  }
+}
+
+/* ---------- GitHub backup ---------- */
+
+async function backupToGitHub() {
+  const settings = getSettings();
+  const gh = settings.github;
+  if (!gh.token || !gh.owner || !gh.repo) {
+    throw new Error("Add a token, GitHub username and repo name first.");
+  }
+
+  const path = gh.path || "commute-data.json";
+  const records = getRecords();
+  const jsonText = JSON.stringify(records, null, 2);
+  const content = btoa(unescape(encodeURIComponent(jsonText)));
+
+  const apiUrl = `https://api.github.com/repos/${gh.owner}/${gh.repo}/contents/${encodeURIComponent(path)}`;
+  const headers = {
+    "Authorization": `Bearer ${gh.token}`,
+    "Accept": "application/vnd.github+json"
+  };
+
+  // Look up the existing file's sha first — GitHub requires it to update rather than create.
+  let sha;
+  const getRes = await fetch(apiUrl, { headers });
+  if (getRes.ok) {
+    const getData = await getRes.json();
+    sha = getData.sha;
+  } else if (getRes.status !== 404) {
+    throw new Error(`could not check the repo (HTTP ${getRes.status}) — check the token and repo name`);
+  }
+
+  const body = {
+    message: `Commute data backup — ${new Date().toISOString()}`,
+    content,
+    ...(sha ? { sha } : {})
+  };
+
+  const putRes = await fetch(apiUrl, {
+    method: "PUT",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  if (!putRes.ok) {
+    const errData = await putRes.json().catch(() => ({}));
+    throw new Error(errData.message || `HTTP ${putRes.status}`);
+  }
+}
+
+async function manualBackup() {
+  const statusEl = document.getElementById("backup-status");
+  statusEl.textContent = "Backing up…";
+  try {
+    await backupToGitHub();
+    statusEl.textContent = `Backed up ✓ (${new Date().toLocaleTimeString()})`;
+  } catch (err) {
+    statusEl.textContent = `Failed: ${err.message}`;
   }
 }
 
@@ -382,7 +494,7 @@ function renderOverview(records) {
   if (home && wr9) {
     const diff = Math.abs(home.avgMin - wr9.avgMin);
     diffText = `${diff.toFixed(0)} min`;
-    diffDetail = diff < 0.5 ? "Evenly matched" : (home.avgMin < wr9.avgMin ? "Evesham is faster on average" : "Droitwich is faster on average");
+    diffDetail = diff < 0.5 ? "Evenly matched" : (home.avgMin < wr9.avgMin ? `${displayLocation("Home")} is faster on average` : `${displayLocation("WR9 0BA")} is faster on average`);
   }
 
   document.getElementById("stat-grid").innerHTML = `
@@ -391,7 +503,7 @@ function renderOverview(records) {
       <div class="value">${avgAll.toFixed(0)} min</div>
     </div>
     <div class="stat-card">
-      <div class="label">Evesham vs Droitwich</div>
+      <div class="label">${escapeHtml(displayLocation("Home"))} vs ${escapeHtml(displayLocation("WR9 0BA"))}</div>
       <div class="value">${diffText}</div>
       <div class="detail">${diffDetail}</div>
     </div>
@@ -658,11 +770,14 @@ function resetAllData() {
   renderData();
 }
 
-/* ---------- CSV export (your only backup — data lives in this browser only) ---------- */
+/* ---------- CSV export (Save to Files → iCloud Drive is the closest thing to auto-save) ---------- */
 
-function exportCSV() {
+async function exportCSV() {
   const records = getRecords().slice().sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-  if (!records.length) return;
+  if (!records.length) {
+    alert("No data to export yet.");
+    return;
+  }
   const headers = ["timestamp", "period", "routeLabel", "origin", "destination", "durationMinutes", "distanceMiles", "weatherTempC", "weatherPrecipitationMM", "weatherDescription"];
   const rows = records.map((r) => headers.map((h) => {
     let v = r[h];
@@ -671,11 +786,27 @@ function exportCSV() {
     return v;
   }).join(","));
   const csv = [headers.join(","), ...rows].join("\n");
+  const filename = `commute-data-${new Date().toISOString().slice(0, 10)}.csv`;
+
+  // On iPhone, sharing a file opens the native share sheet, where
+  // "Save to Files → iCloud Drive" is just two taps.
+  if (navigator.canShare) {
+    try {
+      const file = new File([csv], filename, { type: "text/csv" });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: "Commute data export" });
+        return;
+      }
+    } catch (e) {
+      // Share was cancelled or unsupported — fall through to a plain download.
+    }
+  }
+
   const blob = new Blob([csv], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `commute-data-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -689,3 +820,6 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(() => {});
   });
 }
+
+/* ---------- Initial paint ---------- */
+updateHomeHero();

@@ -64,6 +64,37 @@ address bar — it behaves like a normal app, and it never expires or needs rein
 4. Tap **Save Settings**.
 5. Go back, tap **Calculate New Commute**, then **Calculate Now** to test it.
 
+## Managing your data
+
+- **Delete a single entry:** in **View Captured Data → Table**, tap the ✕ on any card.
+- **Delete everything:** same screen, **Reset All Data** button at the bottom (asks you
+  to confirm first — export a CSV beforehand if you want a backup).
+- **Spreadsheet view:** a third tab, **Sheet**, shows every run as a proper gridded table
+  (date, time, day, period, route, from/to, minutes, miles, temperature, weather,
+  season) — scroll sideways on narrow screens to see every column.
+- **Rename your addresses:** in Settings, each address now has its own **Display name**
+  field — what shows in the charts, table, and overview (e.g. "Evesham" instead of
+  "Home"). The address/coordinates underneath are unaffected; this only changes the label.
+
+## Automatic backups
+
+There are two backup options, in Settings:
+
+- **GitHub (automatic, no taps needed):** create a free **fine-grained personal access
+  token** at github.com/settings/tokens → scope it to just one repo → give it
+  **Contents: Read and write** permission and nothing else. Paste the token, your GitHub
+  username, and a repo name into Settings, turn on **"Back up automatically after each
+  calculation,"** and every time you calculate a commute, a JSON copy of all your data is
+  pushed to a file in that repo. You can also tap **Backup Now** any time for a manual
+  backup. This can be the same repo hosting the app, or a separate private one.
+- **iCloud (manual, two taps):** a website genuinely can't write into iCloud Drive on its
+  own — Apple doesn't allow that, for good security reasons. The closest thing: tap
+  **Export as CSV** on the Table tab. On iPhone this opens the native share sheet, and
+  **Save to Files → iCloud Drive** is two taps from there.
+
+If you'd rather not use either, your data still lives safely in this browser's local
+storage — these are just extra safety nets.
+
 ## About your data
 
 - Everything is stored **only in this browser, on this phone** (no server, no account,

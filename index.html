@@ -43,7 +43,7 @@
     max-width: 520px;
     margin: 0 auto;
     min-height: 100vh;
-    padding: 20px 18px calc(40px + env(safe-area-inset-bottom));
+    padding: calc(22px + env(safe-area-inset-top)) 18px calc(40px + env(safe-area-inset-bottom));
   }
 
   .screen { display: none; }
@@ -323,7 +323,7 @@
     <div class="hero">
       <div class="glyph">🚗</div>
       <h1>Commute Tracker</h1>
-      <p>Evesham / Droitwich ⇄ Safran, Hatherley Lane</p>
+      <p id="hero-subtitle">Evesham / Droitwich ⇄ Safran, Hatherley Lane</p>
     </div>
     <button class="big-btn primary" onclick="showScreen('screen-calculate'); renderCalculate();">
       <span class="emoji">📍</span> Calculate New Commute
@@ -359,6 +359,50 @@
         </label>
       </div>
       <div class="hint">Free, no key needed (Open-Meteo). Recorded for the Safran location at calculation time.</div>
+    </div>
+
+    <div class="card">
+      <h3>Automatic backup (GitHub)</h3>
+      <label>Personal access token</label>
+      <input type="password" id="ghToken" placeholder="Fine-grained token">
+      <div class="row">
+        <div>
+          <label>GitHub username</label>
+          <input type="text" id="ghOwner" placeholder="yourusername">
+        </div>
+        <div>
+          <label>Repo name</label>
+          <input type="text" id="ghRepo" placeholder="commute-tracker">
+        </div>
+      </div>
+      <label>File path in repo</label>
+      <input type="text" id="ghPath" placeholder="commute-data.json">
+      <div class="toggle-row">
+        <span>Back up automatically after each calculation</span>
+        <label class="switch">
+          <input type="checkbox" id="ghAutoBackup">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="hint">
+        Saves a JSON copy of all your data to a file in a GitHub repo you choose (can be the
+        same repo hosting this app, or a separate one). Create a token at
+        github.com/settings/tokens → Fine-grained tokens → scope it to just this one repo with
+        <strong>Contents: Read and write</strong> permission only, nothing else.
+      </div>
+      <button class="btn btn-secondary" style="margin-top:12px;" onclick="manualBackup()">Backup Now</button>
+      <div id="backup-status" class="hint" style="text-align:center; margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <h3>Saving to iCloud</h3>
+      <div class="hint">
+        A website can't silently write into iCloud Drive — Apple doesn't allow that for
+        security reasons. The closest thing: tap <strong>Export as CSV</strong> on the Table
+        tab — on iPhone this opens the share sheet, where <strong>Save to Files → iCloud
+        Drive</strong> takes two taps. The GitHub backup above is the option that runs
+        automatically with no taps at all.
+      </div>
     </div>
 
     <div class="btn-row">
