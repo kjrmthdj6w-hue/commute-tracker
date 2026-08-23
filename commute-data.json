@@ -50,31 +50,5 @@
     "weatherPrecipitationMM": 0,
     "weatherDescription": "Partly cloudy",
     "id": "mt6700mfoi5n1qv331m"
-  },
-  {
-    "timestamp": "2026-08-23T19:22:24.582Z",
-    "period": "Evening",
-    "routeLabel": "Home",
-    "origin": "Safran (Hatherley Lane)",
-    "destination": "Home",
-    "durationMinutes": 32.06666666666667,
-    "distanceMiles": 22.205997489654145,
-    "weatherTempC": 20.8,
-    "weatherPrecipitationMM": 0,
-    "weatherDescription": "Partly cloudy",
-    "id": "mt671z9i7ynb9sm0ms7"
-  },
-  {
-    "timestamp": "2026-08-23T19:22:24.582Z",
-    "period": "Evening",
-    "routeLabel": "WR9 0BA",
-    "origin": "Safran (Hatherley Lane)",
-    "destination": "WR9 0BA",
-    "durationMinutes": 34.516666666666666,
-    "distanceMiles": 29.769346440155594,
-    "weatherTempC": 20.8,
-    "weatherPrecipitationMM": 0,
-    "weatherDescription": "Partly cloudy",
-    "id": "mt671z9jetu92phnc6p"
   }
 ]
