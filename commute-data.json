@@ -2,19 +2,6 @@
   {
     "timestamp": "2026-08-23T19:20:49.120Z",
     "period": "Evening",
-    "routeLabel": "Home",
-    "origin": "Safran (Hatherley Lane)",
-    "destination": "Home",
-    "durationMinutes": 32,
-    "distanceMiles": 22.205997489654145,
-    "weatherTempC": 20.8,
-    "weatherPrecipitationMM": 0,
-    "weatherDescription": "Partly cloudy",
-    "id": "mt66zxltmnqdh4kezt"
-  },
-  {
-    "timestamp": "2026-08-23T19:20:49.120Z",
-    "period": "Evening",
     "routeLabel": "WR9 0BA",
     "origin": "Safran (Hatherley Lane)",
     "destination": "WR9 0BA",
