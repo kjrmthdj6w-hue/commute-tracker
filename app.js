@@ -195,6 +195,58 @@ function resetSettings() {
   renderSettings();
 }
 
+/* ---------- Settings backup (text you copy somewhere safe yourself) ---------- */
+/* This is deliberately NOT auto-synced anywhere (e.g. into the GitHub-backed
+   JSON file) — that file may end up world-readable in your repo's history
+   forever, which is a bad place for a token with write access to your
+   account. This is copy-on-demand, into wherever *you* choose to trust. */
+
+function serializeSettingsForBackup() {
+  const s = getSettings();
+  return JSON.stringify({ tomtomKey: s.tomtomKey, places: s.places, github: s.github }, null, 2);
+}
+
+async function copySettingsBackup() {
+  const text = serializeSettingsForBackup();
+  const outputEl = document.getElementById("settings-backup-text");
+  const statusEl = document.getElementById("settings-backup-status");
+  outputEl.value = text;
+  outputEl.style.display = "block";
+  try {
+    await navigator.clipboard.writeText(text);
+    statusEl.textContent = "Copied ✓ — paste it into Notes or a password manager now.";
+  } catch (e) {
+    outputEl.select();
+    statusEl.textContent = "Couldn't auto-copy — tap the text above, select all, and copy manually.";
+  }
+}
+
+function applySettingsBackupFromTextarea() {
+  const statusEl = document.getElementById("settings-backup-status");
+  const text = document.getElementById("settings-restore-text").value.trim();
+  if (!text) {
+    statusEl.textContent = "Paste your saved settings text first.";
+    return;
+  }
+  try {
+    const parsed = JSON.parse(text);
+    const s = getSettings();
+    if (typeof parsed.tomtomKey === "string") s.tomtomKey = parsed.tomtomKey;
+    if (parsed.places) {
+      ["home", "wr9", "safran"].forEach((key) => {
+        if (parsed.places[key]) s.places[key] = { ...s.places[key], ...parsed.places[key] };
+      });
+    }
+    if (parsed.github) s.github = { ...s.github, ...parsed.github };
+    saveSettings(s);
+    updateHomeHero();
+    renderSettings();
+    statusEl.textContent = "Restored ✓";
+  } catch (e) {
+    statusEl.textContent = "That doesn't look valid — make sure you pasted the whole thing.";
+  }
+}
+
 /* ---------- Home screen ---------- */
 
 function updateHomeHero() {
@@ -285,7 +337,7 @@ async function runCalculation() {
 
   btn.disabled = true;
   btn.textContent = "Syncing…";
-  await syncFromGitHubBeforeCalculate();
+  await syncFromGitHub();
 
   btn.textContent = "Calculating…";
   const period = currentPeriod();
@@ -392,9 +444,11 @@ async function pullFromGitHub() {
 }
 
 /// Pulls the latest GitHub backup and merges it into local storage (by record id,
-/// so nothing is duplicated or lost). Best-effort: failures here never block the
-/// calculation itself — if it can't reach GitHub, it just proceeds with local data.
-async function syncFromGitHubBeforeCalculate() {
+/// so nothing is duplicated or lost). Best-effort: failures here are silent —
+/// if it can't reach GitHub, it just leaves local data as it is. Called on app
+/// startup, when opening the data screen, and before every calculation, so a
+/// wiped or fresh local storage gets repopulated as early as possible.
+async function syncFromGitHub() {
   const settings = getSettings();
   if (!githubConfigured(settings)) return;
   try {
@@ -480,6 +534,33 @@ async function manualBackup() {
   }
 }
 
+/// Explicitly pulls the GitHub backup and merges it into local storage (by record id).
+/// Unlike the automatic pull-before-calculate, this can be triggered any time —
+/// e.g. after reopening the app, switching devices, or just wanting to double-check
+/// nothing's missing. Existing local records are kept, not replaced, so this is safe
+/// to run even if local data is currently ahead of the backup.
+async function manualRestore() {
+  const statusEl = document.getElementById("backup-status");
+  const settings = getSettings();
+  if (!settings.github.token || !settings.github.owner || !settings.github.repo) {
+    statusEl.textContent = "Add a token, username and repo first.";
+    return;
+  }
+  statusEl.textContent = "Loading saved data…";
+  try {
+    const remoteRecords = await pullFromGitHub();
+    const before = getRecords().length;
+    const merged = mergeRecordsById(getRecords(), remoteRecords || []);
+    localStorage.setItem("commuteRecords", JSON.stringify(merged));
+    const added = merged.length - before;
+    statusEl.textContent = added > 0
+      ? `Loaded ✓ — added ${added} entr${added === 1 ? "y" : "ies"} (${merged.length} total)`
+      : `Loaded ✓ — already up to date (${merged.length} total)`;
+  } catch (err) {
+    statusEl.textContent = `Failed: ${err.message}`;
+  }
+}
+
 /* ---------- Data screen: state ---------- */
 
 let currentTopMode = "insights";
@@ -507,6 +588,14 @@ function setTrendGrouping(mode) {
   currentTrendGrouping = mode;
   document.querySelectorAll("#trend-grouping-segment button").forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
   renderChart();
+}
+
+/// Called when the user taps "View Captured Data" — syncs from GitHub first
+/// (in case local storage was wiped or is out of date), then renders.
+async function openDataScreen() {
+  showScreen("screen-data");
+  await syncFromGitHub();
+  renderData();
 }
 
 function renderData() {
@@ -886,5 +975,19 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+/* ---------- Storage hardening ---------- */
+/* Best-effort: ask the browser not to evict this site's storage under
+   pressure. iOS Safari doesn't reliably honour this, but it's free to try
+   and can help on other browsers. */
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().catch(() => {});
+}
+
 /* ---------- Initial paint ---------- */
 updateHomeHero();
+
+/* Best-effort restore right on open — if local storage was wiped since the
+   last visit, this repopulates it from the GitHub backup before the person
+   even taps anything. Silent: if it's offline or unconfigured, nothing
+   happens and the app just carries on with whatever's stored locally. */
+syncFromGitHub();

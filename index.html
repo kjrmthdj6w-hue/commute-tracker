@@ -126,6 +126,19 @@
   }
   input:focus { outline: 2px solid var(--teal); }
 
+  textarea {
+    width: 100%;
+    background: #0e1728;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 11.5px;
+    font-family: ui-monospace, SFMono-Regular, monospace;
+    resize: vertical;
+  }
+  textarea:focus { outline: 2px solid var(--teal); }
+
   .row { display: flex; gap: 10px; }
   .row > * { flex: 1; }
 
@@ -328,7 +341,7 @@
     <button class="big-btn primary" onclick="showScreen('screen-calculate'); renderCalculate();">
       <span class="emoji">📍</span> Calculate New Commute
     </button>
-    <button class="big-btn" onclick="showScreen('screen-data'); renderData();">
+    <button class="big-btn" onclick="openDataScreen()">
       <span class="emoji">📊</span> View Captured Data
     </button>
   </div>
@@ -390,8 +403,28 @@
         github.com/settings/tokens → Fine-grained tokens → scope it to just this one repo with
         <strong>Contents: Read and write</strong> permission only, nothing else.
       </div>
-      <button class="btn btn-secondary" style="margin-top:12px;" onclick="manualBackup()">Backup Now</button>
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-secondary" onclick="manualBackup()">Backup Now</button>
+        <button class="btn btn-secondary" onclick="manualRestore()">Load Saved Data</button>
+      </div>
       <div id="backup-status" class="hint" style="text-align:center; margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <h3>Settings backup</h3>
+      <div class="hint">
+        A Home Screen icon on iOS can end up with its own separate storage — and removing then
+        re-adding the icon starts a fresh one, wiping your saved key and token even though
+        nothing else changed. Copy the text below into Notes or a password manager now, and
+        you can restore everything in one paste if that ever happens.
+      </div>
+      <button class="btn btn-secondary" style="margin-top:10px;" onclick="copySettingsBackup()">Copy Settings as Text</button>
+      <textarea id="settings-backup-text" rows="4" style="display:none; margin-top:10px;" readonly onclick="this.select()"></textarea>
+
+      <label style="margin-top:16px;">Restore from saved text</label>
+      <textarea id="settings-restore-text" rows="4" placeholder="Paste your saved settings text here"></textarea>
+      <button class="btn btn-secondary" style="margin-top:10px;" onclick="applySettingsBackupFromTextarea()">Restore Settings</button>
+      <div id="settings-backup-status" class="hint" style="text-align:center; margin-top:8px;"></div>
     </div>
 
     <div class="card">

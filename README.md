@@ -64,6 +64,30 @@ address bar — it behaves like a normal app, and it never expires or needs rein
 4. Tap **Save Settings**.
 5. Go back, tap **Calculate New Commute**, then **Calculate Now** to test it.
 
+## If your data or settings disappear
+
+iOS can give a Home Screen icon its **own separate storage**, isolated from regular
+Safari — and critically, **removing and re-adding the icon starts a brand-new one**,
+wiping whatever was saved. If you ever notice data intact in Safari but missing from the
+icon, this is almost certainly why. The fix: once your icon is set up and working, avoid
+removing and re-adding it — just reopen the existing one.
+
+As extra protection:
+
+- **Your commute data**: the app now automatically pulls and merges your GitHub backup
+  both on opening the app and on opening "View Captured Data," not just before a
+  calculation — so a wiped local storage repairs itself as soon as you open the app,
+  as long as GitHub backup was configured before the wipe happened.
+- **Your TomTom key and GitHub token**: in Settings, under **"Settings backup,"** tap
+  **Copy Settings as Text** and paste the result into Notes or a password manager. If a
+  storage wipe ever happens again, paste that text into the **"Restore from saved
+  text"** box and tap **Restore Settings** — no retyping the token by hand.
+
+  This is deliberately a manual, user-controlled copy rather than something synced
+  automatically into the GitHub-backed JSON file — that file can end up permanently
+  visible in your repo's commit history, which is a bad place for a token that has
+  write access to your account.
+
 ## Managing your data
 
 - **Delete a single entry:** in **View Captured Data → Table**, tap the ✕ on any card.
@@ -94,6 +118,12 @@ There are two backup options, in Settings:
   It does the same merge-and-push cycle after you **delete a single entry** or **Reset
   All Data** from the Table tab, so the GitHub copy always reflects what's actually on
   your phone, in both directions.
+
+  There's also a **"Load Saved Data"** button next to Backup Now, for restoring on
+  demand — e.g. after reopening the app, or if you're not sure your local data matches
+  what's backed up. It merges the GitHub copy into what's stored locally (by matching
+  each entry's ID), so it only ever adds anything missing — it never deletes or
+  overwrites what's already on your phone.
 - **iCloud (manual, two taps):** a website genuinely can't write into iCloud Drive on its
   own — Apple doesn't allow that, for good security reasons. The closest thing: tap
   **Export as CSV** on the Table tab. On iPhone this opens the native share sheet, and
