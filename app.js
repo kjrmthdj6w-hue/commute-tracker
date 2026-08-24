@@ -210,15 +210,26 @@ async function copySettingsBackup() {
   const text = serializeSettingsForBackup();
   const outputEl = document.getElementById("settings-backup-text");
   const statusEl = document.getElementById("settings-backup-status");
-  outputEl.value = text;
+
+  // Always show the text pre-selected, ready for a manual copy — the
+  // Clipboard API is unreliable inside installed Home Screen apps on iOS
+  // and can fail silently with no error, so don't depend on it working.
   outputEl.style.display = "block";
+  outputEl.value = text;
+  outputEl.focus();
+  outputEl.setSelectionRange(0, text.length);
+
+  let autoCopied = false;
   try {
     await navigator.clipboard.writeText(text);
-    statusEl.textContent = "Copied ✓ — paste it into Notes or a password manager now.";
+    autoCopied = true;
   } catch (e) {
-    outputEl.select();
-    statusEl.textContent = "Couldn't auto-copy — tap the text above, select all, and copy manually.";
+    autoCopied = false;
   }
+
+  statusEl.textContent = autoCopied
+    ? "Copied ✓ — try pasting into Notes. If it comes up empty, the text below is already selected — tap it, tap Copy, then paste."
+    : "The text below is already selected — tap it, tap Copy, then paste into Notes.";
 }
 
 function applySettingsBackupFromTextarea() {
@@ -448,11 +459,20 @@ async function pullFromGitHub() {
 /// if it can't reach GitHub, it just leaves local data as it is. Called on app
 /// startup, when opening the data screen, and before every calculation, so a
 /// wiped or fresh local storage gets repopulated as early as possible.
+/// Races a promise against a timeout — resolves to undefined if the timeout wins,
+/// so a slow/unreachable network call never blocks the UI indefinitely.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((resolve) => setTimeout(() => resolve(undefined), ms))
+  ]);
+}
+
 async function syncFromGitHub() {
   const settings = getSettings();
   if (!githubConfigured(settings)) return;
   try {
-    const remoteRecords = await pullFromGitHub();
+    const remoteRecords = await withTimeout(pullFromGitHub(), 6000);
     if (remoteRecords) {
       const merged = mergeRecordsById(getRecords(), remoteRecords);
       localStorage.setItem("commuteRecords", JSON.stringify(merged));
@@ -468,12 +488,18 @@ async function autoBackupAfterChange(statusElId) {
   const settings = getSettings();
   const statusEl = statusElId ? document.getElementById(statusElId) : null;
   if (!githubConfigured(settings)) return;
-  if (statusEl) statusEl.textContent = "Backing up to GitHub…";
+  if (statusEl) { statusEl.className = "hint"; statusEl.textContent = "Backing up to GitHub…"; }
   try {
     await backupToGitHub();
-    if (statusEl) statusEl.textContent = `Backed up ✓ (${new Date().toLocaleTimeString()})`;
+    if (statusEl) {
+      statusEl.className = "success-box";
+      statusEl.textContent = `✅ Backed up successfully — ${new Date().toLocaleTimeString()}`;
+    }
   } catch (err) {
-    if (statusEl) statusEl.textContent = `Backup failed: ${err.message}`;
+    if (statusEl) {
+      statusEl.className = "error-box";
+      statusEl.textContent = `Backup failed: ${err.message}`;
+    }
   }
 }
 
@@ -525,12 +551,15 @@ async function backupToGitHub() {
 
 async function manualBackup() {
   const statusEl = document.getElementById("backup-status");
+  statusEl.className = "hint";
   statusEl.textContent = "Backing up…";
   try {
     await backupToGitHub();
-    statusEl.textContent = `Backed up ✓ (${new Date().toLocaleTimeString()})`;
+    statusEl.className = "success-box";
+    statusEl.textContent = `✅ Backed up successfully — ${new Date().toLocaleTimeString()}`;
   } catch (err) {
-    statusEl.textContent = `Failed: ${err.message}`;
+    statusEl.className = "error-box";
+    statusEl.textContent = `Backup failed: ${err.message}`;
   }
 }
 
@@ -542,6 +571,7 @@ async function manualBackup() {
 async function manualRestore() {
   const statusEl = document.getElementById("backup-status");
   const settings = getSettings();
+  statusEl.className = "hint";
   if (!settings.github.token || !settings.github.owner || !settings.github.repo) {
     statusEl.textContent = "Add a token, username and repo first.";
     return;
@@ -553,11 +583,13 @@ async function manualRestore() {
     const merged = mergeRecordsById(getRecords(), remoteRecords || []);
     localStorage.setItem("commuteRecords", JSON.stringify(merged));
     const added = merged.length - before;
+    statusEl.className = "success-box";
     statusEl.textContent = added > 0
-      ? `Loaded ✓ — added ${added} entr${added === 1 ? "y" : "ies"} (${merged.length} total)`
-      : `Loaded ✓ — already up to date (${merged.length} total)`;
+      ? `✅ Data loaded successfully — added ${added} entr${added === 1 ? "y" : "ies"} (${merged.length} total now saved)`
+      : `✅ Data loaded successfully — everything already up to date (${merged.length} total)`;
   } catch (err) {
-    statusEl.textContent = `Failed: ${err.message}`;
+    statusEl.className = "error-box";
+    statusEl.textContent = `Failed to load: ${err.message}`;
   }
 }
 
@@ -591,10 +623,16 @@ function setTrendGrouping(mode) {
 }
 
 /// Called when the user taps "View Captured Data" — syncs from GitHub first
-/// (in case local storage was wiped or is out of date), then renders.
+/// (in case local storage was wiped or is out of date), then renders. Wrapped
+/// so that no matter what goes wrong with the sync, the screen still renders
+/// with whatever's stored locally rather than getting stuck.
 async function openDataScreen() {
   showScreen("screen-data");
-  await syncFromGitHub();
+  try {
+    await syncFromGitHub();
+  } catch (e) {
+    // Already handled inside syncFromGitHub, but belt-and-braces here too.
+  }
   renderData();
 }
 
@@ -612,10 +650,14 @@ function renderData() {
   empty.style.display = "none";
   content.style.display = "block";
 
-  renderOverview(records);
-  renderTable(records);
-  renderSheet(records);
-  if (currentTopMode === "insights") renderChart();
+  // Each render step is independent — a problem in one (e.g. the Chart.js CDN
+  // failing to load) should never stop the others from showing your data.
+  try { renderOverview(records); } catch (e) { console.error("renderOverview failed:", e); }
+  try { renderTable(records); } catch (e) { console.error("renderTable failed:", e); }
+  try { renderSheet(records); } catch (e) { console.error("renderSheet failed:", e); }
+  if (currentTopMode === "insights") {
+    try { renderChart(); } catch (e) { console.error("renderChart failed:", e); }
+  }
 }
 
 /* ---------- Overview ---------- */

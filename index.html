@@ -184,6 +184,17 @@
     margin-top: 14px;
   }
 
+  .success-box {
+    background: rgba(45,212,191,0.14);
+    border: 1px solid rgba(45,212,191,0.45);
+    color: var(--teal);
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 13.5px;
+    font-weight: 700;
+    margin-top: 14px;
+  }
+
   .result-item {
     padding: 12px 0;
     border-bottom: 1px solid var(--border);
@@ -420,6 +431,7 @@
       </div>
       <button class="btn btn-secondary" style="margin-top:10px;" onclick="copySettingsBackup()">Copy Settings as Text</button>
       <textarea id="settings-backup-text" rows="4" style="display:none; margin-top:10px;" readonly onclick="this.select()"></textarea>
+      <div class="hint">If the text above doesn't auto-select: tap into it, tap "Select All" in the popup menu, then "Copy" — then paste into Notes.</div>
 
       <label style="margin-top:16px;">Restore from saved text</label>
       <textarea id="settings-restore-text" rows="4" placeholder="Paste your saved settings text here"></textarea>
