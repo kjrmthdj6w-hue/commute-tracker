@@ -804,5 +804,31 @@
     "weatherPrecipitationMM": null,
     "weatherDescription": null,
     "id": "muvey9eo5nxc51upzux"
+  },
+  {
+    "timestamp": "2026-10-07T06:20:29.283Z",
+    "period": "Morning",
+    "routeLabel": "Home",
+    "origin": "Home",
+    "destination": "Safran (Hatherley Lane)",
+    "durationMinutes": 38.86666666666667,
+    "distanceMiles": 23.50590925472554,
+    "weatherTempC": 12.5,
+    "weatherPrecipitationMM": 0.2,
+    "weatherDescription": "Drizzle",
+    "id": "muxpxr6rjqbdnujg86p"
+  },
+  {
+    "timestamp": "2026-10-07T06:20:29.283Z",
+    "period": "Morning",
+    "routeLabel": "WR9 0BA",
+    "origin": "WR9 0BA",
+    "destination": "Safran (Hatherley Lane)",
+    "durationMinutes": 40.3,
+    "distanceMiles": 29.823405868244127,
+    "weatherTempC": 12.5,
+    "weatherPrecipitationMM": 0.2,
+    "weatherDescription": "Drizzle",
+    "id": "muxpxr6skbi63ewdmj"
   }
 ]
